@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import Link from "next/link";
 import { Bell } from "lucide-react";
 import WmsSidebar from "@/components/WmsSidebar";
 
@@ -23,9 +24,9 @@ export default function WmsPageShell({
             <h1>{title}</h1>
             <p className="muted">{subtitle}</p>
           </div>
-          <button className="iconButton" title="Notifications">
+          <Link className="iconButton" title="Notifications" href="/notifications">
             <Bell size={20} />
-          </button>
+          </Link>
         </header>
         {children}
       </section>
