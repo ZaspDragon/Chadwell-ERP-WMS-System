@@ -67,7 +67,7 @@ export default function TransfersPage() {
 
     const {data,error}=await supabase
       .from("transfer_assignments")
-      .select("id,ticket_code,status,assigned_user_id,created_at,transfers(id,transfer_number,source_branch_code,destination_branch_code,ship_to_name,ship_to_address_1,ship_to_city,ship_to_state,ship_to_postal_code,transfer_date,status),profiles:assigned_user_id(first_name,last_name),transfer_assignment_lines(id,assigned_qty,picked_qty,checked_qty,received_qty,location_verified,item_verified,transfer_lines(line_number,bin_location,item_number,description,ordered_qty,available_qty,uom))")
+      .select("id,ticket_code,status,assigned_user_id,created_at,transfers(id,transfer_number,source_branch_code,destination_branch_code,ship_to_name,ship_to_address_1,ship_to_city,ship_to_state,ship_to_postal_code,transfer_date,status),profiles:profiles!transfer_assignments_assigned_user_id_fkey(first_name,last_name),transfer_assignment_lines(id,assigned_qty,picked_qty,checked_qty,received_qty,location_verified,item_verified,transfer_lines:transfer_lines!transfer_assignment_lines_transfer_line_id_fkey(line_number,bin_location,item_number,description,ordered_qty,available_qty,uom))")
       .order("created_at",{ascending:false});
 
     if(error) setError(error.message);
