@@ -4,17 +4,15 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bell,
-  Box,
   CheckCircle2,
-  ClipboardList,
   FileText,
   PackageCheck,
   Printer,
   QrCode,
   Search,
   Send,
-  Truck,
 } from "lucide-react";
+import WmsSidebar from "@/components/WmsSidebar";
 import { demoDocuments, detectDocumentType } from "@/lib/receiving/mock-data";
 import type { ReceivingDocument, ReceivingExceptionType, ReceivingPallet } from "@/lib/receiving/types";
 
@@ -178,30 +176,7 @@ export default function ReceivingPage() {
 
   return (
     <main className="shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brandMark">CW</div>
-          <div>
-            <strong>Chadwell WMS</strong>
-            <small>Warehouse Operations</small>
-          </div>
-        </div>
-
-        <nav>
-          <a className="navItem" href="#"><ClipboardList size={18} /> Dashboard</a>
-          <a className="navItem active" href="#"><Truck size={18} /> Receiving</a>
-          <a className="navItem" href="#"><FileText size={18} /> POs</a>
-          <a className="navItem" href="#"><Send size={18} /> Transfers</a>
-          <a className="navItem" href="#"><QrCode size={18} /> Pallets / LPNs</a>
-          <a className="navItem" href="#"><PackageCheck size={18} /> Putaway</a>
-          <a className="navItem" href="#"><Box size={18} /> Inventory</a>
-        </nav>
-
-        <div className="sidebarFooter">
-          <span className="dot" /> Demo mode
-          <small>Supabase connection pending</small>
-        </div>
-      </aside>
+      <WmsSidebar />
 
       <section className="content">
         <header className="topbar">
