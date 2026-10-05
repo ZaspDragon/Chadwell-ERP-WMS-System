@@ -85,11 +85,11 @@ export default function PurchaseOrdersPage() {
         <div className="tableWrap">
           <table>
             <thead>
-              <tr><th>Document</th><th>Type</th><th>Vendor</th><th>Branch</th><th>Date</th><th>Status</th></tr>
+              <tr><th>Document</th><th>Type</th><th>Vendor</th><th>Branch</th><th>Date</th><th>Status</th><th>Action</th></tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="empty">Loading purchase orders...</td></tr>
+                <tr><td colSpan={7} className="empty">Loading purchase orders...</td></tr>
               ) : filtered.length ? filtered.map((row) => (
                 <tr key={row.id}>
                   <td><strong>{row.document_number}</strong></td>
@@ -98,6 +98,7 @@ export default function PurchaseOrdersPage() {
                   <td>{row.branch_code}</td>
                   <td>{row.document_date ?? "—"}</td>
                   <td><span className="status green">{row.status}</span></td>
+                  <td><a className="miniButton" href={"/receiving?document="+encodeURIComponent(row.document_number)}>Receive</a></td>
                 </tr>
               )) : (
                 <tr><td colSpan={6} className="empty"><FileText size={26}/> No PO records yet.</td></tr>
