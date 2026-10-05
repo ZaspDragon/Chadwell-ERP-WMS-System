@@ -31,3 +31,19 @@
   .itemStickerText span{font-size:10pt;line-height:1.2;margin-top:7px;max-height:.52in;overflow:hidden}
   .itemStickerText small{font-size:8pt;margin-top:5px}
 }
+
+.ticketGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.ticketCard{border:1px solid #d9e2eb;background:#fff;border-radius:12px;padding:14px;display:flex;gap:14px;align-items:center;text-align:left;cursor:pointer}
+.ticketCard:hover{border-color:#1477df;background:#f7fbff}
+.ticketCard strong,.ticketCard span,.ticketCard small{display:block}
+.ticketCard strong{font-size:16px}
+.ticketCard span{font-size:12px;font-weight:800;color:#1477df;margin:3px 0}
+.ticketCard small{color:#6f7d8b;margin-top:2px}
+.transferTicketModal{width:min(1100px,96vw);max-height:92vh;overflow:auto}
+.transferTicketTop{display:grid;grid-template-columns:.7fr 1.4fr auto;gap:14px;border:1px solid #e0e7ee;border-radius:10px;padding:14px;margin-bottom:16px}
+.transferTicketTop small,.transferTicketTop strong,.transferTicketTop span{display:block}
+.transferTicketTop small{font-size:10px;font-weight:800;color:#768496;margin-bottom:4px}
+.transferTicketTop span{font-size:12px;color:#5d6b79;margin-top:2px}
+.ticketQrBlock{text-align:center}
+.ticketQrBlock small{margin-top:6px}
+@media(max-width:760px){.transferTicketTop{grid-template-columns:1fr}.ticketQrBlock{text-align:left}}
