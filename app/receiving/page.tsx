@@ -131,6 +131,14 @@ export default function ReceivingPage() {
     loadProfile();
   }, []);
 
+  useEffect(() => {
+    const documentNumber = new URLSearchParams(window.location.search).get("document");
+    if (documentNumber) {
+      setQuery(documentNumber);
+      void findDocument(documentNumber);
+    }
+  }, []);
+
   async function loadDocumentById(documentId: string) {
     const { data: doc, error: docError } = await supabase
       .from("receiving_documents")
@@ -193,8 +201,8 @@ export default function ReceivingPage() {
     setActivePalletId(open?.id ?? result[0]?.id ?? null);
   }
 
-  async function findDocument() {
-    const normalized = normalizeDocumentScan(query);
+  async function findDocument(value?: string) {
+    const normalized = normalizeDocumentScan(value ?? query);
     if (!normalized) return;
 
     setBusy(true);
