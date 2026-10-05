@@ -664,7 +664,7 @@ export default function ReceivingPage() {
                 )}
 
                 <div className="actionGrid">
-                  <button className="secondary" onClick={() => window.print()}><Printer size={17}/> Print Receiving View</button>
+                  <button className="secondary" onClick={() => { setStickerJob(null); setTimeout(() => window.print(), 50); }}><Printer size={17}/> Print Receiving View</button>
                   <button className="dangerOutline" onClick={() => setShowException(true)}><AlertTriangle size={17}/> Report Problem</button>
                   <button
                     className="primary"
