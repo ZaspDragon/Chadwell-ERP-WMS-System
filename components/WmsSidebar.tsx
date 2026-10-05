@@ -35,7 +35,7 @@ export default function WmsSidebar() {
       </div>
 
       <nav>
-        <Link className="navItem" href="#">
+        <Link className={"navItem" + (pathname === "/dashboard" ? " active" : "")} href="/dashboard">
           <ClipboardList size={18} /> Dashboard
         </Link>
 
