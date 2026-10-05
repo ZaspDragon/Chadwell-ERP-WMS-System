@@ -480,7 +480,7 @@ export default function ReceivingPage() {
                 autoFocus
               />
             </div>
-            <button className="primary" onClick={findDocument} disabled={busy}>
+            <button className="primary" onClick={() => findDocument()} disabled={busy}>
               {busy ? "Working..." : "Open"}
             </button>
           </div>
