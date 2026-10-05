@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   Bell,
@@ -455,7 +456,7 @@ export default function ReceivingPage() {
               Live PO, EDI, SPO, transfer, pallet, exception, label, and putaway workflow.
             </p>
           </div>
-          <button className="iconButton" title="Notifications"><Bell size={20} /></button>
+          <Link className="iconButton" title="Notifications" href="/notifications"><Bell size={20} /></Link>
         </header>
 
         <div className="notice">{notice}</div>
