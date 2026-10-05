@@ -47,3 +47,18 @@
 .ticketQrBlock{text-align:center}
 .ticketQrBlock small{margin-top:6px}
 @media(max-width:760px){.transferTicketTop{grid-template-columns:1fr}.ticketQrBlock{text-align:left}}
+
+.notificationList{display:grid;gap:10px}
+.notificationRow{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:start;border:1px solid #dfe6ed;border-radius:10px;padding:13px;background:#fff}
+.notificationRow.unread{border-color:#9bc8f5;background:#f3f9ff}
+.notificationRow p{margin:4px 0;color:#5f6e7d;font-size:13px}
+.notificationRow small{color:#8190a0}
+.dashboardGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.dashboardCard{background:#fff;border:1px solid #dfe6ed;border-radius:13px;padding:18px;text-decoration:none;color:#172033;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 8px rgba(20,40,60,.04)}
+.dashboardCard:hover{border-color:#1477df;background:#f7fbff}
+.dashboardCard small,.dashboardCard strong,.dashboardCard span{display:block}
+.dashboardCard small{font-size:12px;font-weight:800;color:#657587;text-transform:uppercase}
+.dashboardCard strong{font-size:30px;margin:5px 0}
+.dashboardCard span{font-size:12px;color:#7b8997}
+@media(max-width:900px){.dashboardGrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.dashboardGrid{grid-template-columns:1fr}.notificationRow{grid-template-columns:auto 1fr}.notificationRow .miniButton,.notificationRow .status{grid-column:2}}
