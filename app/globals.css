@@ -62,3 +62,9 @@
 .dashboardCard span{font-size:12px;color:#7b8997}
 @media(max-width:900px){.dashboardGrid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:560px){.dashboardGrid{grid-template-columns:1fr}.notificationRow{grid-template-columns:auto 1fr}.notificationRow .miniButton,.notificationRow .status{grid-column:2}}
+
+.inlineActions{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.finalizeBar{margin-top:14px;border:1px solid #cfe0ef;background:#f7fbff;border-radius:11px;padding:14px;display:flex;justify-content:space-between;gap:16px;align-items:center}
+.finalizeBar strong,.finalizeBar span{display:block}
+.finalizeBar span{font-size:12px;color:#68798a;margin-top:4px;max-width:760px}
+@media(max-width:700px){.finalizeBar{align-items:stretch;flex-direction:column}}
