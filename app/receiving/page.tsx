@@ -75,6 +75,14 @@ type StickerJob = {
   copies: number;
 };
 
+type ReceivingAttachment = {
+  id: string;
+  attachment_type: string;
+  file_name: string;
+  storage_path: string;
+  created_at: string;
+};
+
 const typeLabels: Record<DocType, string> = {
   PO: "PO",
   PO_EDI: "PO EDI",
@@ -137,6 +145,10 @@ export default function ReceivingPage() {
   const [profileName, setProfileName] = useState("Current Receiver");
   const [showFinalize, setShowFinalize] = useState(false);
   const [finalizeNote, setFinalizeNote] = useState("");
+  const [attachments, setAttachments] = useState<ReceivingAttachment[]>([]);
+  const [attachmentType, setAttachmentType] = useState("PACKING_LIST");
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   const activePallet = useMemo(
     () => pallets.find((p) => p.id === activePalletId) ?? null,
@@ -197,9 +209,71 @@ export default function ReceivingPage() {
     };
 
     setActiveDocument(loaded);
-    await loadPallets(documentId);
+    await Promise.all([loadPallets(documentId), loadAttachments(documentId)]);
     setNotice(typeLabels[loaded.document_type] + " " + loaded.document_number + " loaded.");
     return loaded;
+  }
+
+  async function loadAttachments(documentId: string) {
+    const { data, error } = await supabase
+      .from("receiving_attachments")
+      .select("id,attachment_type,file_name,storage_path,created_at")
+      .eq("receiving_document_id", documentId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    setAttachments((data as ReceivingAttachment[] | null) ?? []);
+  }
+
+  async function uploadAttachment() {
+    if (!activeDocument || !attachmentFile) return;
+    setUploadingAttachment(true);
+    setError("");
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const safeName = attachmentFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const storagePath = activeDocument.id + "/" + Date.now() + "-" + safeName;
+
+      const { error: storageError } = await supabase.storage
+        .from("receiving-attachments")
+        .upload(storagePath, attachmentFile, { upsert: false });
+
+      if (storageError) throw storageError;
+
+      const { error: rowError } = await supabase.from("receiving_attachments").insert({
+        receiving_document_id: activeDocument.id,
+        attachment_type: attachmentType,
+        file_name: attachmentFile.name,
+        storage_path: storagePath,
+        uploaded_by: userData.user?.id ?? null,
+      });
+
+      if (rowError) {
+        await supabase.storage.from("receiving-attachments").remove([storagePath]);
+        throw rowError;
+      }
+
+      setAttachmentFile(null);
+      await loadAttachments(activeDocument.id);
+      setNotice(attachmentFile.name + " attached to " + activeDocument.document_number + ".");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not upload receiving attachment.");
+    } finally {
+      setUploadingAttachment(false);
+    }
+  }
+
+  async function openAttachment(row: ReceivingAttachment) {
+    setError("");
+    const { data, error } = await supabase.storage
+      .from("receiving-attachments")
+      .createSignedUrl(row.storage_path, 300);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
   async function loadPallets(documentId: string) {
@@ -618,6 +692,40 @@ export default function ReceivingPage() {
                 <div><small>DOCUMENT DATE</small><strong>{activeDocument.document_date ?? "—"}</strong></div>
                 <div><small>RECEIVER</small><strong>{profileName}</strong></div>
               </div>
+
+              <div className="receivingDocumentsBar">
+                <div>
+                  <strong>Receiving Documents</strong>
+                  <span>Attach packing lists, BOLs, receiving reports, invoices, and damage photos.</span>
+                </div>
+                <select value={attachmentType} onChange={(e) => setAttachmentType(e.target.value)}>
+                  <option value="PACKING_LIST">Packing List</option>
+                  <option value="RECEIVING_REPORT">Receiving Report</option>
+                  <option value="BOL">BOL</option>
+                  <option value="INVOICE">Invoice</option>
+                  <option value="DAMAGE_PHOTO">Damage Photo</option>
+                  <option value="OTHER">Other</option>
+                </select>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,.csv,.xls,.xlsx"
+                  onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+                />
+                <button className="secondary" disabled={!attachmentFile || uploadingAttachment} onClick={uploadAttachment}>
+                  {uploadingAttachment ? "Uploading..." : "Attach File"}
+                </button>
+              </div>
+
+              {attachments.length ? (
+                <div className="attachmentChips">
+                  {attachments.map((row) => (
+                    <button className="attachmentChip" key={row.id} onClick={() => openAttachment(row)}>
+                      <strong>{row.attachment_type.replaceAll("_", " ")}</strong>
+                      <span>{row.file_name}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="tableWrap">
                 <table>
