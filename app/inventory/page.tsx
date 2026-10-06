@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Box, RefreshCw, Search } from "lucide-react";
+import { ArrowRightLeft, Box, Pencil, RefreshCw, Search } from "lucide-react";
 import WmsPageShell from "@/components/WmsPageShell";
 import { supabase } from "@/lib/supabase/client";
 
@@ -34,6 +34,13 @@ export default function InventoryPage(){
   const [historyFor,setHistoryFor]=useState<Row|null>(null);
   const [movements,setMovements]=useState<Movement[]>([]);
   const [historyLoading,setHistoryLoading]=useState(false);
+  const [actionRow,setActionRow]=useState<Row|null>(null);
+  const [actionType,setActionType]=useState<"MOVE"|"ADJUST"|null>(null);
+  const [destination,setDestination]=useState("");
+  const [moveQty,setMoveQty]=useState(1);
+  const [newOnHand,setNewOnHand]=useState(0);
+  const [reason,setReason]=useState("");
+  const [notice,setNotice]=useState("");
 
   async function load(){
     setLoading(true); setError("");
@@ -63,6 +70,31 @@ export default function InventoryPage(){
     setHistoryLoading(false);
   }
 
+  async function submitInventoryAction(){
+    if(!actionRow || !actionType) return;
+    setError(""); setNotice("");
+    if(actionType==="MOVE"){
+      const {error}=await supabase.rpc("move_inventory",{
+        p_inventory_balance_id:actionRow.id,
+        p_to_location_code:destination.trim(),
+        p_quantity:moveQty,
+        p_reason:reason.trim()||null
+      });
+      if(error){setError(error.message);return;}
+      setNotice("Inventory move posted successfully.");
+    } else {
+      const {error}=await supabase.rpc("adjust_inventory",{
+        p_inventory_balance_id:actionRow.id,
+        p_new_on_hand:newOnHand,
+        p_reason:reason.trim()
+      });
+      if(error){setError(error.message);return;}
+      setNotice("Inventory adjustment posted and audited.");
+    }
+    setActionRow(null);setActionType(null);setDestination("");setReason("");
+    await load();
+  }
+
   const filtered=useMemo(()=>{
     const q=query.trim().toLowerCase();
     if(!q) return rows;
@@ -75,6 +107,7 @@ export default function InventoryPage(){
 
   return (
     <WmsPageShell eyebrow="INVENTORY CONTROL" title="Inventory" subtitle="Live WMS quantity by item, branch, and verified warehouse location.">
+      {notice ? <div className="notice">{notice}</div> : null}
       <div className="summaryGrid">
         <div className="summaryCard"><small>Inventory Records</small><strong>{rows.length}</strong></div>
         <div className="summaryCard"><small>On Hand</small><strong>{onHand}</strong></div>
@@ -97,13 +130,53 @@ export default function InventoryPage(){
               filtered.length ? filtered.map(r=>(
                 <tr key={r.id}>
                   <td><strong>{r.items?.item_number ?? "—"}</strong></td><td>{r.items?.description ?? "—"}</td><td>{r.warehouse_locations?.location_code ?? "—"}</td><td>{r.branches?.code ?? "—"}</td>
-                  <td>{r.on_hand}</td><td>{r.allocated}</td><td>{Number(r.on_hand)-Number(r.allocated)-Number(r.on_hold)}</td><td>{r.on_hold}</td><td><button className="miniButton" onClick={()=>openHistory(r)}>History</button></td>
+                  <td>{r.on_hand}</td><td>{r.allocated}</td><td>{Number(r.on_hand)-Number(r.allocated)-Number(r.on_hold)}</td><td>{r.on_hold}</td><td>
+  <div className="inlineActions">
+    <button className="miniButton" onClick={()=>openHistory(r)}>History</button>
+    <button className="miniButton" onClick={()=>{setActionRow(r);setActionType("MOVE");setMoveQty(1);setDestination("");setReason("");}}><ArrowRightLeft size={14}/> Move</button>
+    <button className="miniButton" onClick={()=>{setActionRow(r);setActionType("ADJUST");setNewOnHand(Number(r.on_hand));setReason("");}}><Pencil size={14}/> Adjust</button>
+  </div>
+</td>
                 </tr>
               )) : <tr><td colSpan={7} className="empty"><Box size={26}/> No inventory balances yet.</td></tr>}
             </tbody>
           </table>
         </div>
       </section>
+
+      {actionRow && actionType ? (
+        <div className="modalBackdrop">
+          <div className="modal">
+            <div className="modalHeader">
+              <div>
+                <p className="eyebrow">{actionType==="MOVE" ? "INVENTORY MOVE" : "INVENTORY ADJUSTMENT"}</p>
+                <h2>{actionRow.items?.item_number}</h2>
+                <p className="muted">{actionRow.warehouse_locations?.location_code} · {actionRow.branches?.code}</p>
+              </div>
+              <button className="iconButton" onClick={()=>{setActionRow(null);setActionType(null);}}>×</button>
+            </div>
+            {actionType==="MOVE" ? (
+              <>
+                <label>Destination Location</label>
+                <input value={destination} onChange={(e)=>setDestination(e.target.value)} placeholder="Scan destination bin"/>
+                <label>Quantity</label>
+                <input type="number" min={1} value={moveQty} onChange={(e)=>setMoveQty(Math.max(1,Number(e.target.value)||1))}/>
+              </>
+            ) : (
+              <>
+                <label>New On-Hand Quantity</label>
+                <input type="number" min={0} value={newOnHand} onChange={(e)=>setNewOnHand(Math.max(0,Number(e.target.value)||0))}/>
+              </>
+            )}
+            <label>Reason</label>
+            <textarea rows={3} value={reason} onChange={(e)=>setReason(e.target.value)} placeholder="Required for adjustment; recommended for moves."/>
+            <div className="modalActions">
+              <button className="secondary" onClick={()=>{setActionRow(null);setActionType(null);}}>Cancel</button>
+              <button className="primary" onClick={submitInventoryAction}>{actionType==="MOVE" ? "Post Move" : "Post Adjustment"}</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {historyFor ? (
         <div className="modalBackdrop">
