@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Printer, QrCode, RefreshCw, Search } from "lucide-react";
+import { CirclePause, CirclePlay, Printer, QrCode, RefreshCw, Search } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import WmsPageShell from "@/components/WmsPageShell";
 import { supabase } from "@/lib/supabase/client";
@@ -24,6 +24,8 @@ export default function PalletsPage() {
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [selected,setSelected]=useState<Row|null>(null);
+  const [notice,setNotice]=useState("");
+  const [holdReason,setHoldReason]=useState("");
 
   async function load(){
     setLoading(true); setError("");
@@ -37,6 +39,21 @@ export default function PalletsPage() {
 
   useEffect(()=>{load();},[]);
 
+  async function toggleHold(row:Row){
+    setError("");setNotice("");
+    const puttingOnHold=row.status!=="HOLD";
+    const {error}=await supabase.rpc("set_pallet_hold",{
+      p_pallet_id:row.id,
+      p_hold:puttingOnHold,
+      p_reason:puttingOnHold ? holdReason.trim()||"Warehouse hold" : "Released from hold"
+    });
+    if(error){setError(error.message);return;}
+    setNotice(row.pallet_code+(puttingOnHold?" placed on hold.":" released from hold."));
+    setHoldReason("");
+    await load();
+    setSelected(null);
+  }
+
   const filtered=useMemo(()=>{
     const q=query.trim().toLowerCase();
     if(!q) return rows;
@@ -44,7 +61,8 @@ export default function PalletsPage() {
   },[query,rows]);
 
   return (
-    <WmsPageShell eyebrow="PALLET CONTROL" title="Pallets / LPNs" subtitle="Scan, research, and track every receiving pallet or license plate.">
+    <WmsPageShell eyebrow="PALLET CONTROL" title="Pallets / LPNs" subtitle="Scan, research, hold/release, reprint, and track every receiving pallet or license plate.">
+      {notice ? <div className="notice">{notice}</div> : null}
       <div className="summaryGrid">
         <div className="summaryCard"><small>Total Pallets</small><strong>{rows.length}</strong></div>
         <div className="summaryCard"><small>Open</small><strong>{rows.filter(r=>r.status==="OPEN").length}</strong></div>
@@ -102,8 +120,23 @@ export default function PalletsPage() {
                 </tbody>
               </table>
             </div>
+            {selected.status!=="PUTAWAY_COMPLETE" ? (
+              <div className="scanItem">
+                {selected.status!=="HOLD" ? (
+                  <>
+                    <label>Hold Reason</label>
+                    <input value={holdReason} onChange={(e)=>setHoldReason(e.target.value)} placeholder="Damage, research, mismatch, etc."/>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             <div className="modalActions">
               <button className="secondary" onClick={()=>window.print()}><Printer size={16}/> Reprint Pallet QR</button>
+              {selected.status!=="PUTAWAY_COMPLETE" ? (
+                <button className={selected.status==="HOLD" ? "success" : "dangerOutline"} onClick={()=>toggleHold(selected)}>
+                  {selected.status==="HOLD" ? <><CirclePlay size={16}/> Release Hold</> : <><CirclePause size={16}/> Place Hold</>}
+                </button>
+              ) : null}
               <button className="primary" onClick={()=>setSelected(null)}>Done</button>
             </div>
           </div>
