@@ -13,6 +13,8 @@ import {
   Search,
   Send,
   Sticker,
+  ExternalLink,
+  RotateCcw,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import WmsSidebar from "@/components/WmsSidebar";
@@ -85,11 +87,35 @@ function normalizeDocumentScan(value: string) {
   if (!v) return "";
   if (v.includes("|")) {
     const parts = v.split("|").map((part) => part.trim()).filter(Boolean);
+    if (parts[0]?.toUpperCase() === "WMS" && parts[1]?.toUpperCase() === "PALLET" && parts[2]) {
+      return "PALLET:" + parts[2].toUpperCase();
+    }
     const transferIndex = parts.findIndex((part) => part.toUpperCase() === "TRANSFER");
     if (transferIndex >= 0 && parts[transferIndex + 2]) return parts[transferIndex + 2].toUpperCase();
     const doc = parts.find((part) => /^(PO|SPO|SXFR|XFR)/i.test(part));
     if (doc) return doc.toUpperCase();
   }
+  if (/^PLT-/i.test(v)) return "PALLET:" + v.toUpperCase();
+  return v.toUpperCase();
+}
+
+function normalizeItemScan(value: string) {
+  const v = value.trim();
+  if (!v) return "";
+
+  if (v.includes("|")) {
+    const parts = v.split("|").map((part) => part.trim()).filter(Boolean);
+    if (parts[0]?.toUpperCase() === "WMS" && parts[1]?.toUpperCase() === "ITEM" && parts[2]) {
+      return parts[2].toUpperCase();
+    }
+  }
+
+  try {
+    const url = new URL(v);
+    const q = url.searchParams.get("q");
+    if (q) return q.trim().toUpperCase();
+  } catch {}
+
   return v.toUpperCase();
 }
 
@@ -109,6 +135,8 @@ export default function ReceivingPage() {
   const [exceptionLineId, setExceptionLineId] = useState<string | null>(null);
   const [stickerJob, setStickerJob] = useState<StickerJob | null>(null);
   const [profileName, setProfileName] = useState("Current Receiver");
+  const [showFinalize, setShowFinalize] = useState(false);
+  const [finalizeNote, setFinalizeNote] = useState("");
 
   const activePallet = useMemo(
     () => pallets.find((p) => p.id === activePalletId) ?? null,
@@ -210,6 +238,26 @@ export default function ReceivingPage() {
     setError("");
 
     try {
+      if (normalized.startsWith("PALLET:")) {
+        const palletCode = normalized.slice("PALLET:".length);
+        const { data: pallet, error: palletError } = await supabase
+          .from("pallets")
+          .select("id,receiving_document_id,pallet_code")
+          .eq("pallet_code", palletCode)
+          .maybeSingle();
+
+        if (palletError) throw palletError;
+        if (!pallet?.receiving_document_id) {
+          setNotice("No receiving document is linked to pallet " + palletCode + ".");
+          return;
+        }
+
+        await loadDocumentById(pallet.receiving_document_id);
+        setActivePalletId(pallet.id);
+        setNotice("Pallet " + palletCode + " opened in Receiving.");
+        return;
+      }
+
       const { data: doc, error: docLookupError } = await supabase
         .from("receiving_documents")
         .select("id")
@@ -305,7 +353,7 @@ export default function ReceivingPage() {
       return;
     }
 
-    const scanned = scanValue.trim().toUpperCase();
+    const scanned = normalizeItemScan(scanValue);
     if (!scanned) return;
 
     const line = activeDocument.lines.find(
@@ -405,6 +453,64 @@ export default function ReceivingPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function undoPalletQuantity(line: PalletLine, qty = 1) {
+    if (!activePallet || !activeDocument || !line.receiving_line_id) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { error: rpcError } = await supabase.rpc("undo_receiving_quantity", {
+        p_pallet_id: activePallet.id,
+        p_receiving_line_id: line.receiving_line_id,
+        p_quantity: Math.min(Number(line.quantity), qty),
+      });
+      if (rpcError) throw rpcError;
+      await loadDocumentById(activeDocument.id);
+      setNotice("Corrected received quantity for item " + line.item_number + ".");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not correct received quantity.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function finalizeReceipt() {
+    if (!activeDocument) return;
+    setBusy(true);
+    setError("");
+    try {
+      const { data, error: rpcError } = await supabase.rpc("finalize_receiving_document", {
+        p_document_id: activeDocument.id,
+        p_resolution_note: finalizeNote.trim() || null,
+      });
+      if (rpcError) throw rpcError;
+      await loadDocumentById(activeDocument.id);
+      setShowFinalize(false);
+      setFinalizeNote("");
+      setNotice("Receipt " + activeDocument.document_number + " finalized as " + String(data) + ".");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not finalize receipt.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openStickerPrice(job: StickerJob, location = "") {
+    if (!activeDocument) return;
+    const type = activeDocument.document_type === "TRANSFER" ? "SXFR" : activeDocument.document_type === "PO_EDI" ? "PO" : activeDocument.document_type;
+    const params = new URLSearchParams({
+      source: "wms",
+      type,
+      doc: activeDocument.document_number,
+      branch: activeDocument.branch_code,
+      item: job.itemNumber,
+      qty: String(job.copies),
+      copies: String(job.copies),
+      description: job.description,
+      location,
+    });
+    window.open("https://zaspdragon.github.io/StickerPrice/?" + params.toString(), "_blank", "noopener,noreferrer");
   }
 
   async function closePallet() {
@@ -553,6 +659,19 @@ export default function ReceivingPage() {
                             >
                               <Sticker size={15}/> Print
                             </button>
+                            <button
+                              className="miniButton"
+                              disabled={Number(line.received_now_qty) <= 0}
+                              onClick={() => openStickerPrice({
+                                itemId: line.item_id,
+                                itemNumber: line.item_number,
+                                description: line.description ?? "",
+                                uom: line.uom ?? "EA",
+                                copies: Math.min(250, Math.max(1, Math.floor(Number(line.received_now_qty)))),
+                              }, line.bin ?? "")}
+                            >
+                              <ExternalLink size={14}/> StickerPrice
+                            </button>
                           </td>
                         </tr>
                       );
@@ -651,18 +770,37 @@ export default function ReceivingPage() {
                         <div>
                           <strong>{line.item_number}</strong>
                           <p>{line.description ?? "No description"}</p>
-                          <button
-                            className="miniButton"
-                            onClick={() => printSticker({
-                              itemId: line.item_id,
-                              itemNumber: line.item_number,
-                              description: line.description ?? "",
-                              uom: line.uom ?? "EA",
-                              copies: Math.min(250, Math.max(1, Math.floor(Number(line.quantity)))),
-                            })}
-                          >
-                            <Sticker size={14}/> Print {Math.min(250, Math.max(1, Math.floor(Number(line.quantity))))} sticker(s)
-                          </button>
+                          <div className="inlineActions">
+                            <button
+                              className="miniButton"
+                              onClick={() => printSticker({
+                                itemId: line.item_id,
+                                itemNumber: line.item_number,
+                                description: line.description ?? "",
+                                uom: line.uom ?? "EA",
+                                copies: Math.min(250, Math.max(1, Math.floor(Number(line.quantity)))),
+                              })}
+                            >
+                              <Sticker size={14}/> Print {Math.min(250, Math.max(1, Math.floor(Number(line.quantity))))} sticker(s)
+                            </button>
+                            <button
+                              className="miniButton"
+                              onClick={() => openStickerPrice({
+                                itemId: line.item_id,
+                                itemNumber: line.item_number,
+                                description: line.description ?? "",
+                                uom: line.uom ?? "EA",
+                                copies: Math.min(250, Math.max(1, Math.floor(Number(line.quantity)))),
+                              })}
+                            >
+                              <ExternalLink size={14}/> StickerPrice
+                            </button>
+                            {activePallet?.status === "OPEN" && line.receiving_line_id ? (
+                              <button className="miniButton" disabled={busy} onClick={() => undoPalletQuantity(line, 1)}>
+                                <RotateCcw size={14}/> Undo 1
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                         <span>{line.quantity} {line.uom ?? "EA"}</span>
                       </div>
@@ -683,6 +821,15 @@ export default function ReceivingPage() {
                     <CheckCircle2 size={17}/> Close & Send to Putaway
                   </button>
                 </div>
+                <div className="finalizeBar">
+                  <div>
+                    <strong>Receipt Completion</strong>
+                    <span>Finalize only after every pallet is closed. Short receipts require a documented exception and supervisor/admin approval.</span>
+                  </div>
+                  <button className="success" disabled={busy || activeDocument.status === "CLOSED"} onClick={() => setShowFinalize(true)}>
+                    <CheckCircle2 size={17}/> Finalize Receipt
+                  </button>
+                </div>
               </section>
             </div>
           </>
@@ -691,6 +838,27 @@ export default function ReceivingPage() {
             <div className="emptyState">Scan a live inbound document to begin receiving.</div>
           </section>
         )}
+
+        {showFinalize ? (
+          <div className="modalBackdrop">
+            <div className="modal">
+              <div className="modalHeader">
+                <div>
+                  <p className="eyebrow">FINALIZE RECEIPT</p>
+                  <h2>{activeDocument?.document_number}</h2>
+                </div>
+                <button className="iconButton" onClick={() => setShowFinalize(false)}>×</button>
+              </div>
+              <p className="muted">If any quantity is short, document the exception first and enter the supervisor resolution below.</p>
+              <label>Resolution / Close Note</label>
+              <textarea rows={4} value={finalizeNote} onChange={(e) => setFinalizeNote(e.target.value)} placeholder="Complete receipt, carrier shortage, vendor approved short, backorder, etc."/>
+              <div className="modalActions">
+                <button className="secondary" onClick={() => setShowFinalize(false)}>Cancel</button>
+                <button className="success" onClick={finalizeReceipt} disabled={busy}><CheckCircle2 size={17}/> Finalize Receipt</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {showException ? (
           <div className="modalBackdrop">
