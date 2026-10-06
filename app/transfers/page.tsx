@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, QrCode, RefreshCw, Search, Send, UserRound } from "lucide-react";
+import { CheckCircle2, QrCode, RefreshCw, ScanLine, Search, Send, UserRound } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import WmsPageShell from "@/components/WmsPageShell";
 import { supabase } from "@/lib/supabase/client";
@@ -58,6 +58,11 @@ export default function TransfersPage() {
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [userId,setUserId]=useState("");
+  const [activeLine,setActiveLine]=useState<AssignmentLine|null>(null);
+  const [locationScan,setLocationScan]=useState("");
+  const [itemScan,setItemScan]=useState("");
+  const [pickQty,setPickQty]=useState(1);
+  const [notice,setNotice]=useState("");
 
   async function load(){
     setLoading(true); setError("");
@@ -97,12 +102,31 @@ export default function TransfersPage() {
     return name||"Assigned Picker";
   }
 
+  async function confirmPick(){
+    if(!activeLine) return;
+    setError(""); setNotice("");
+    const {error}=await supabase.rpc("pick_transfer_line",{
+      p_assignment_line_id:activeLine.id,
+      p_location_scan:locationScan.trim(),
+      p_item_scan:itemScan.trim(),
+      p_quantity:pickQty
+    });
+    if(error){ setError(error.message); return; }
+    setNotice("Pick posted successfully.");
+    setActiveLine(null);
+    setLocationScan("");
+    setItemScan("");
+    setPickQty(1);
+    await load();
+  }
+
   return (
     <WmsPageShell
       eyebrow="BRANCH MOVEMENT"
       title="Transfers"
       subtitle="Personal transfer tickets for picking, checking, shipping, and destination receiving."
     >
+      {notice ? <div className="notice">{notice}</div> : null}
       {error ? <div className="notice dangerNotice">{error}</div> : null}
 
       <div className="summaryGrid">
@@ -193,7 +217,7 @@ export default function TransfersPage() {
 
             <div className="tableWrap">
               <table>
-                <thead><tr><th>Bin</th><th>Item</th><th>Order</th><th>Assigned</th><th>Picked</th><th>Checked</th><th>Avail</th><th>Description</th><th>UM</th></tr></thead>
+                <thead><tr><th>Bin</th><th>Item</th><th>Order</th><th>Assigned</th><th>Picked</th><th>Checked</th><th>Avail</th><th>Description</th><th>UM</th><th>Action</th></tr></thead>
                 <tbody>
                   {(selected.transfer_assignment_lines??[]).length ? (selected.transfer_assignment_lines??[]).map(line=>(
                     <tr key={line.id}>
@@ -206,11 +230,47 @@ export default function TransfersPage() {
                       <td>{line.transfer_lines?.available_qty ?? "—"}</td>
                       <td>{line.transfer_lines?.description ?? "—"}</td>
                       <td>{line.transfer_lines?.uom ?? "EA"}</td>
+                      <td>
+                        {selected.assigned_user_id===userId && Number(line.picked_qty)<Number(line.assigned_qty) ? (
+                          <button className="miniButton" onClick={()=>{setActiveLine(line);setLocationScan("");setItemScan("");setPickQty(Math.max(1,Number(line.assigned_qty)-Number(line.picked_qty)));}}>
+                            <ScanLine size={14}/> Pick
+                          </button>
+                        ) : "—"}
+                      </td>
                     </tr>
-                  )) : <tr><td colSpan={9} className="empty">No assigned lines on this ticket yet.</td></tr>}
+                  )) : <tr><td colSpan={10} className="empty">No assigned lines on this ticket yet.</td></tr>}
                 </tbody>
               </table>
             </div>
+
+            {activeLine ? (
+              <div className="card">
+                <div className="sectionTitle">
+                  <div>
+                    <h2>Pick Line</h2>
+                    <p>Scan the primary location first, then scan the item QR/barcode, then confirm quantity.</p>
+                  </div>
+                </div>
+                <div className="metadataGrid">
+                  <div><small>EXPECTED BIN</small><strong>{activeLine.transfer_lines?.bin_location ?? "—"}</strong></div>
+                  <div><small>ITEM</small><strong>{activeLine.transfer_lines?.item_number ?? "—"}</strong></div>
+                  <div><small>REMAINING</small><strong>{Math.max(0,Number(activeLine.assigned_qty)-Number(activeLine.picked_qty))}</strong></div>
+                </div>
+                <div className="scanItem">
+                  <label>Scan Primary Location</label>
+                  <input value={locationScan} onChange={(e)=>setLocationScan(e.target.value)} placeholder={activeLine.transfer_lines?.bin_location ?? "Scan bin"} autoFocus />
+                  <label>Scan Item QR / Barcode</label>
+                  <input value={itemScan} onChange={(e)=>setItemScan(e.target.value)} placeholder={activeLine.transfer_lines?.item_number ?? "Scan item"} />
+                  <div className="quantityRow">
+                    <div>
+                      <label>Pick Quantity</label>
+                      <input type="number" min={1} value={pickQty} onChange={(e)=>setPickQty(Math.max(1,Number(e.target.value)||1))}/>
+                    </div>
+                    <button className="success" onClick={confirmPick}><CheckCircle2 size={16}/> Confirm Pick</button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="modalActions">
               <button className="secondary" onClick={()=>window.print()}><QrCode size={16}/> Print Ticket / QR</button>
