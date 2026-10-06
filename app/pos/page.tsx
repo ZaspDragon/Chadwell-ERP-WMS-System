@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText, RefreshCw, Search } from "lucide-react";
+import { CirclePause, CirclePlay, FileText, RefreshCw, Search } from "lucide-react";
 import WmsPageShell from "@/components/WmsPageShell";
 import { supabase } from "@/lib/supabase/client";
 
@@ -22,6 +22,9 @@ export default function PurchaseOrdersPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [selected, setSelected] = useState<Row | null>(null);
+  const [holdReason, setHoldReason] = useState("");
 
   async function load() {
     setLoading(true);
@@ -38,6 +41,25 @@ export default function PurchaseOrdersPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function toggleHold(row: Row) {
+    setError("");
+    setNotice("");
+    const hold = row.status !== "EXCEPTION";
+    const { error } = await supabase.rpc("set_receiving_document_hold", {
+      p_document_id: row.id,
+      p_hold: hold,
+      p_reason: hold ? holdReason.trim() || "Receiving hold" : "Released from hold",
+    });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setNotice(row.document_number + (hold ? " placed on hold." : " released from hold."));
+    setSelected(null);
+    setHoldReason("");
+    await load();
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -59,6 +81,7 @@ export default function PurchaseOrdersPage() {
       title="Purchase Orders"
       subtitle="PO, PO EDI, and SPO receiving documents."
     >
+      {notice ? <div className="notice">{notice}</div> : null}
       <div className="summaryGrid">
         <div className="summaryCard"><small>Total POs</small><strong>{rows.length}</strong></div>
         <div className="summaryCard"><small>Open</small><strong>{open}</strong></div>
@@ -98,7 +121,15 @@ export default function PurchaseOrdersPage() {
                   <td>{row.branch_code}</td>
                   <td>{row.document_date ?? "—"}</td>
                   <td><span className="status green">{row.status}</span></td>
-                  <td><a className="miniButton" href={"/receiving?document="+encodeURIComponent(row.document_number)}>Receive</a></td>
+                  <td>
+  <div className="inlineActions">
+    <a className="miniButton" href={"/receiving?document="+encodeURIComponent(row.document_number)}>Receive</a>
+    <button className="miniButton" onClick={()=>{setSelected(row);setHoldReason("");}}>
+      {row.status==="EXCEPTION" ? <CirclePlay size={14}/> : <CirclePause size={14}/>}
+      {row.status==="EXCEPTION" ? "Release" : "Hold"}
+    </button>
+  </div>
+</td>
                 </tr>
               )) : (
                 <tr><td colSpan={6} className="empty"><FileText size={26}/> No PO records yet.</td></tr>
@@ -107,6 +138,29 @@ export default function PurchaseOrdersPage() {
           </table>
         </div>
       </section>
+
+      {selected ? (
+        <div className="modalBackdrop">
+          <div className="modal">
+            <div className="modalHeader">
+              <div><p className="eyebrow">PO CONTROL</p><h2>{selected.document_number}</h2><p className="muted">{selected.branch_code} · {selected.status}</p></div>
+              <button className="iconButton" onClick={()=>setSelected(null)}>×</button>
+            </div>
+            {selected.status!=="EXCEPTION" ? (
+              <>
+                <label>Hold Reason</label>
+                <textarea rows={3} value={holdReason} onChange={(e)=>setHoldReason(e.target.value)} placeholder="Damage, vendor issue, count mismatch, approval, etc."/>
+              </>
+            ) : null}
+            <div className="modalActions">
+              <button className="secondary" onClick={()=>setSelected(null)}>Cancel</button>
+              <button className={selected.status==="EXCEPTION" ? "success" : "danger"} onClick={()=>toggleHold(selected)}>
+                {selected.status==="EXCEPTION" ? "Release Document" : "Place Document on Hold"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </WmsPageShell>
   );
 }
