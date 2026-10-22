@@ -10,6 +10,7 @@ import {
   QrCode,
   Send,
   Truck,
+  Settings2,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/pallets", label: "Pallets / LPNs", icon: QrCode },
   { href: "/putaway", label: "Putaway", icon: PackageCheck },
   { href: "/inventory", label: "Inventory", icon: Box },
+  { href: "/workflows", label: "Workflow Builder", icon: Settings2 },
 ];
 
 export default function WmsSidebar() {
