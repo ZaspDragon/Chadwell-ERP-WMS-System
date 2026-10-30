@@ -10,6 +10,8 @@ import {
   QrCode,
   Send,
   Truck,
+  ShoppingCart,
+  Headset,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +21,8 @@ const navItems = [
   { href: "/pallets", label: "Pallets / LPNs", icon: QrCode },
   { href: "/putaway", label: "Putaway", icon: PackageCheck },
   { href: "/inventory", label: "Inventory", icon: Box },
+  { href: "/primary-picking", label: "Primary Picking", icon: ShoppingCart },
+  { href: "/help", label: "Help Center", icon: Headset },
 ];
 
 export default function WmsSidebar() {
@@ -29,7 +33,7 @@ export default function WmsSidebar() {
       <div className="brand">
         <div className="brandMark">CW</div>
         <div>
-          <strong>Chadwell WMS</strong>
+          <strong>CHADWMS</strong>
           <small>Warehouse Operations</small>
         </div>
       </div>
