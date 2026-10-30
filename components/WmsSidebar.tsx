@@ -11,6 +11,7 @@ import {
   Send,
   Truck,
   ShoppingCart,
+  History,
   Headset,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/pallets", label: "Pallets / LPNs", icon: QrCode },
   { href: "/putaway", label: "Putaway", icon: PackageCheck },
   { href: "/inventory", label: "Inventory", icon: Box },
+  { href: "/inventory/movements", label: "Movement Audit", icon: History },
   { href: "/primary-picking", label: "Primary Picking", icon: ShoppingCart },
   { href: "/help", label: "Help Center", icon: Headset },
 ];
