@@ -16,6 +16,7 @@ import {
   ClipboardCheck,
   PackagePlus,
   Forklift,
+  AlertTriangle,
 } from "lucide-react";
 
 const navItems = [
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/inventory", label: "Inventory", icon: Box },
   { href: "/inventory/movements", label: "Movement Audit", icon: History },
   { href: "/cycle-counts", label: "Cycle Counts", icon: ClipboardCheck },
+  { href: "/discrepancies", label: "Discrepancy Queue", icon: AlertTriangle },
   { href: "/primary-picking", label: "Primary Picking", icon: ShoppingCart },
   { href: "/replenishment", label: "Auto Restock", icon: PackagePlus },
   { href: "/driver-restocks", label: "Driver Restocks", icon: Forklift },
