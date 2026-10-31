@@ -4,11 +4,13 @@ import WmsPageShell from "@/components/WmsPageShell";
 import {filterStock,previewStockImport,type ImportPreview} from "@/lib/integrations/external-inventory";
 
 export default function ExternalInventoryPage(){
+ const [mappings,setMappings]=useState<Record<string,string>>({});
  const [preview,setPreview]=useState<ImportPreview|null>(null),[warehouse,setWarehouse]=useState("ALL"),[search,setSearch]=useState(""),[source,setSource]=useState("Great Plains / BinMgr"),[error,setError]=useState(""),[filename,setFilename]=useState("");
  const visible=useMemo(()=>filterStock(preview?.rows||[],warehouse,search),[preview,warehouse,search]);
+ const mappingConflicts=useMemo(()=>{const groups=new Map<string,string[]>();for(const [source,target] of Object.entries(mappings)){const key=target.trim().toUpperCase();if(key){groups.set(key,[...(groups.get(key)||[]),source])}}return [...groups.entries()].filter(([,sources])=>sources.length>1)},[mappings]);
  async function load(file:File|undefined){if(!file)return;setError("");setPreview(null);setWarehouse("ALL");setFilename(file.name);
   if(file.size>5_000_000){setError("File too large. Use a CSV export under 5 MB.");return}
-  try{const text=await file.text();setPreview(previewStockImport(text,source))}catch(e){setError(e instanceof Error?e.message:"Could not parse file")}
+  try{const text=await file.text();setPreview(previewStockImport(text,source));setMappings({})}catch(e){setError(e instanceof Error?e.message:"Could not parse file")}
  }
  return <WmsPageShell eyebrow="CHADWMS / Integrations" title="External Warehouse Inventory" subtitle="Preview and separate inventory by warehouse, bin and item before connecting an existing ERP/WMS.">
   <section className="card" style={{padding:20,marginBottom:16}}>
@@ -24,6 +26,10 @@ export default function ExternalInventoryPage(){
    <section className="card" style={{padding:20,marginBottom:16}}>
     <h2>{preview.warehouses.length} warehouses · {preview.rows.length} unique bin/item records</h2>
     <p>{preview.issues.length} rejected lines · {preview.duplicateKeys.length} duplicate keys. Invalid lines are excluded rather than silently merged.</p>
+    <h3>Source warehouse → CHADWMS branch mapping</h3>
+    <p className="muted">Assign each discovered warehouse to its correct branch. These mappings are preview-only and are not saved or used to post stock.</p>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginBottom:12}}>{preview.warehouses.map(w=><label key={w}>{w} → Branch<input value={mappings[w]||""} onChange={e=>setMappings(v=>({...v,[w]:e.target.value.toUpperCase()}))} placeholder="e.g. OH01" style={{display:"block",padding:10,width:"100%"}}/></label>)}</div>
+    {mappingConflicts.length>0&&<p role="alert" style={{color:"crimson"}}>Review duplicate branch mappings: {mappingConflicts.map(([target,sources])=>target+" ("+sources.join(", ")+")").join("; ")}. Confirm whether these are separate source warehouses before combining them.</p>}
     <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
      <label>Warehouse<select value={warehouse} onChange={e=>setWarehouse(e.target.value)} style={{display:"block",padding:10}}><option value="ALL">All warehouses</option>{preview.warehouses.map(w=><option key={w}>{w}</option>)}</select></label>
      <label>Find bin or item<input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Bin, item or description" style={{display:"block",padding:10}}/></label>
