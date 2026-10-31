@@ -1,6 +1,7 @@
 "use client";
 import {useState} from "react";
 import WmsPageShell from "@/components/WmsPageShell";
+import {onboardDriver,type EmployeeRecord,type EmployeeRole} from "@/lib/replenishment/employee-onboarding";
 import {DEFAULT_COVERAGE,aisleFromBin,recommendDriver,type DriverCoverage} from "@/lib/replenishment/aisle-routing";
 import {DRIVERS,assignDriver,beginTask,finishTask,exceptionTask,type DriverTask} from "@/lib/replenishment/driver-tasks";
 
@@ -9,6 +10,11 @@ export default function DriverRestocks(){
  const [tasks,setTasks]=useState<DriverTask[]>(demo);
  const [coverage,setCoverage]=useState<DriverCoverage[]>(DEFAULT_COVERAGE);
  const [manualOverride,setManualOverride]=useState(false);
+ const [employees,setEmployees]=useState<EmployeeRecord[]>([]);
+ const [hireId,setHireId]=useState("");const [hireName,setHireName]=useState("");
+ const [hireRole,setHireRole]=useState<EmployeeRole>("lift_driver");
+ const [hireStart,setHireStart]=useState(new Date().toISOString().slice(0,10));
+ const [certified,setCertified]=useState(false);
  const [driver,setDriver]=useState<string>(DRIVERS[0]);
  const [source,setSource]=useState("");const [destination,setDestination]=useState("");
  const [item,setItem]=useState("");const [qty,setQty]=useState("");
@@ -27,6 +33,21 @@ export default function DriverRestocks(){
   <div className="panel" style={{padding:18,marginBottom:16}}>
    <strong>Simulation — not connected to driver accounts or live inventory</strong>
    <p className="muted">All tasks are examples and reset when the page reloads. No dispatch notifications, bin transfers or productivity credits are posted.</p>
+  </div>
+  <div className="panel" style={{padding:18,marginBottom:16}}>
+   <h2>New-hire automatic assignment (demo)</h2>
+   <p className="muted">Enter a new employee. Active, certified lift drivers are assigned the least-covered aisle when their start date arrives. Other roles are recorded without lift-driver dispatch rights. This form is not an HR integration.</p>
+   <div style={{display:"flex",flexWrap:"wrap",gap:10,alignItems:"end"}}>
+    <label>Employee ID<input value={hireId} onChange={e=>setHireId(e.target.value)} style={{display:"block",padding:8}}/></label>
+    <label>Name<input value={hireName} onChange={e=>setHireName(e.target.value)} style={{display:"block",padding:8}}/></label>
+    <label>Role<select value={hireRole} onChange={e=>setHireRole(e.target.value as EmployeeRole)} style={{display:"block",padding:8}}>
+     <option value="lift_driver">Lift driver</option><option value="cycle_counter">Cycle counter</option><option value="inventory_specialist">Inventory specialist</option><option value="receiving">Receiving</option><option value="other">Other</option>
+    </select></label>
+    <label>Start date<input type="date" value={hireStart} onChange={e=>setHireStart(e.target.value)} style={{display:"block",padding:8}}/></label>
+    <label><input type="checkbox" checked={certified} onChange={e=>setCertified(e.target.checked)}/> Lift certified</label>
+    <button type="button" onClick={()=>{const result=onboardDriver({employeeId:hireId,name:hireName,branch:"OH01",role:hireRole,startDate:hireStart,active:true,liftCertified:certified},coverage,employees,new Date().toISOString().slice(0,10));setCoverage(result.roster);setEmployees(result.employees);setMessage(result.message);if(result.employees.length>employees.length){setHireId("");setHireName("");setCertified(false)}}}>Add new hire (demo)</button>
+   </div>
+   <p role="status">{message}</p>
   </div>
   <div className="panel" style={{padding:18,marginBottom:16}}>
    <h2>Aisle ownership and attendance (demo)</h2>
@@ -54,7 +75,7 @@ export default function DriverRestocks(){
     <p>Destination aisle: {aisleFromBin(task.primaryBin)||"Unknown"} · Suggested driver: <strong>{recommendation?.driver||"Supervisor required"}</strong> ({recommendation?.reason})</p>
     <button type="button" disabled={task.status!=="OPEN"||!recommendation?.driver} onClick={routeTask}>Assign recommended driver</button>
     <label><input type="checkbox" checked={manualOverride} onChange={e=>setManualOverride(e.target.checked)}/> Supervisor manual override (demo only)</label>
-    <label>Lift driver<select value={driver} onChange={e=>setDriver(e.target.value)} style={{display:"block",padding:10,width:"100%"}}>{DRIVERS.map(d=><option key={d}>{d}</option>)}</select></label>
+    <label>Lift driver<select value={driver} onChange={e=>setDriver(e.target.value)} style={{display:"block",padding:10,width:"100%"}}>{coverage.map(d=><option key={d.name}>{d.name}</option>)}</select></label>
     <button type="button" disabled={task.status!=="OPEN"||!manualOverride||coverage.find(c=>c.name===driver)?.attendance!=="AVAILABLE"} onClick={()=>{setTasks(v=>assignDriver(v,task.id,driver));setMessage("Manual override assigned in demo session only.")}}>Assign Driver</button>
     <button type="button" disabled={task.status!=="ASSIGNED"} onClick={()=>{setTasks(v=>beginTask(v,task.id));setMessage("Demo task started.")}}>Start Task</button>
     <label>Scan source bin<input value={source} onChange={e=>setSource(e.target.value)} placeholder={task.sourceBin} style={{display:"block",padding:10,width:"100%"}}/></label>
