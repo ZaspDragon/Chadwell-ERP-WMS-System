@@ -29,6 +29,7 @@ type Movement = {
 export default function InventoryPage(){
   const [rows,setRows]=useState<Row[]>([]);
   const [query,setQuery]=useState("");
+  const [warehouse,setWarehouse]=useState("ALL");
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
   const [historyFor,setHistoryFor]=useState<Row|null>(null);
@@ -95,21 +96,23 @@ export default function InventoryPage(){
     await load();
   }
 
+  const warehouses=useMemo(()=>[...new Set(rows.map(r=>r.branches?.code).filter((v):v is string=>!!v))].sort(),[rows]);
+  const warehouseRows=useMemo(()=>rows.filter(r=>warehouse==="ALL"||r.branches?.code===warehouse),[rows,warehouse]);
   const filtered=useMemo(()=>{
     const q=query.trim().toLowerCase();
-    if(!q) return rows;
-    return rows.filter(r=>[r.items?.item_number,r.items?.description,r.warehouse_locations?.location_code,r.warehouse_locations?.zone,r.branches?.code].filter(Boolean).some(v=>String(v).toLowerCase().includes(q)));
-  },[query,rows]);
+    if(!q) return warehouseRows;
+    return warehouseRows.filter(r=>[r.items?.item_number,r.items?.description,r.warehouse_locations?.location_code,r.warehouse_locations?.zone,r.branches?.code].filter(Boolean).some(v=>String(v).toLowerCase().includes(q)));
+  },[query,warehouseRows]);
 
-  const onHand=rows.reduce((s,r)=>s+Number(r.on_hand||0),0);
-  const allocated=rows.reduce((s,r)=>s+Number(r.allocated||0),0);
-  const hold=rows.reduce((s,r)=>s+Number(r.on_hold||0),0);
+  const onHand=warehouseRows.reduce((s,r)=>s+Number(r.on_hand||0),0);
+  const allocated=warehouseRows.reduce((s,r)=>s+Number(r.allocated||0),0);
+  const hold=warehouseRows.reduce((s,r)=>s+Number(r.on_hold||0),0);
 
   return (
     <WmsPageShell eyebrow="INVENTORY CONTROL" title="Inventory" subtitle="Live WMS quantity by item, branch, and verified warehouse location.">
       {notice ? <div className="notice">{notice}</div> : null}
       <div className="summaryGrid">
-        <div className="summaryCard"><small>Inventory Records</small><strong>{rows.length}</strong></div>
+        <div className="summaryCard"><small>Inventory Records</small><strong>{warehouseRows.length}</strong></div>
         <div className="summaryCard"><small>On Hand</small><strong>{onHand}</strong></div>
         <div className="summaryCard"><small>Allocated</small><strong>{allocated}</strong></div>
         <div className="summaryCard"><small>On Hold</small><strong>{hold}</strong></div>
@@ -120,6 +123,7 @@ export default function InventoryPage(){
           <div><h2>Inventory Lookup</h2><p>Search item number, description, bin, zone, or branch.</p></div>
           <button className="secondary" onClick={load}><RefreshCw size={16}/> Refresh</button>
         </div>
+        <label style={{display:"block",marginBottom:12}}>Warehouse <select aria-label="Warehouse inventory filter" value={warehouse} onChange={e=>setWarehouse(e.target.value)} style={{padding:10,marginLeft:8}}><option value="ALL">All authorized warehouses</option>{warehouses.map(w=><option key={w} value={w}>{w}</option>)}</select></label>
         <div className="searchInput pageSearch"><Search size={19}/><input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search item, location, or branch..." /></div>
         {error ? <div className="notice dangerNotice">{error}</div> : null}
         <div className="tableWrap">
