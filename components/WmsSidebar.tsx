@@ -13,6 +13,7 @@ import {
   ShoppingCart,
   History,
   Headset,
+  ClipboardCheck,
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/putaway", label: "Putaway", icon: PackageCheck },
   { href: "/inventory", label: "Inventory", icon: Box },
   { href: "/inventory/movements", label: "Movement Audit", icon: History },
+  { href: "/cycle-counts", label: "Cycle Counts", icon: ClipboardCheck },
   { href: "/primary-picking", label: "Primary Picking", icon: ShoppingCart },
   { href: "/help", label: "Help Center", icon: Headset },
 ];
