@@ -20,7 +20,7 @@ export default function CycleCountsPage(){
     e.preventDefault();
     const b=branch.trim().toUpperCase(),loc=location.trim().toUpperCase(),sku=item.trim().toUpperCase();
     const n=Number(quantity);
-    if(!b||!loc||!sku||!quantity.trim()||!Number.isSafeInteger(n)||n<0){setNotice("Enter a branch, location, item number and a whole-number quantity of zero or greater.");return;}
+    if(!b||!loc||!/^\d{6}$/.test(sku)||!quantity.trim()||!Number.isSafeInteger(n)||n<0){setNotice("Enter a branch, location, exactly six digits for the item number, and a whole-number quantity of zero or greater.");return;}
     if(lines.some(l=>l.branch===b&&l.location===loc&&l.item===sku&&l.status==="Draft")){setNotice("This item/location is already in the draft. Mark it for recount before entering a replacement.");return;}
     setLines(prev=>[{id:Date.now()+Math.random(),branch:b,location:loc,item:sku,quantity:n,countedAt:new Date().toISOString(),status:"Draft"},...prev]);
     setItem("");setQuantity("");setNotice("Saved to session draft. Scan the next item in this bin.");
@@ -43,7 +43,7 @@ export default function CycleCountsPage(){
       <form onSubmit={addLine} style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:12}}>
         <label>Branch<input required value={branch} onChange={e=>setBranch(e.target.value)} placeholder="OH01" style={{display:"block",width:"100%",padding:10}}/></label>
         <label>Bin / location<input required value={location} onChange={e=>setLocation(e.target.value)} placeholder="A-01-01" onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();itemRef.current?.focus()}}} style={{display:"block",width:"100%",padding:10}}/></label>
-        <label>Item number<input ref={itemRef} required value={item} onChange={e=>setItem(e.target.value)} placeholder="Scan item" onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();qtyRef.current?.focus()}}} style={{display:"block",width:"100%",padding:10}}/></label>
+        <label>Item number<input ref={itemRef} required value={item} onChange={e=>setItem(e.target.value)} placeholder="6-digit item number" inputMode="numeric" maxLength={6} pattern="[0-9]{6}" onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();qtyRef.current?.focus()}}} style={{display:"block",width:"100%",padding:10}}/></label>
         <label>Physical quantity<input ref={qtyRef} required type="number" min="0" step="1" value={quantity} onChange={e=>setQuantity(e.target.value)} style={{display:"block",width:"100%",padding:10}}/></label>
         <button type="submit" style={{padding:16,minHeight:48,fontSize:16}}>Save count & next item</button>
       </form>
