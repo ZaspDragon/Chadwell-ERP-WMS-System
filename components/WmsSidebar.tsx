@@ -17,6 +17,7 @@ import {
   PackagePlus,
   Forklift,
   AlertTriangle,
+  DatabaseZap,
 } from "lucide-react";
 
 const navItems = [
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/putaway", label: "Putaway", icon: PackageCheck },
   { href: "/inventory", label: "Inventory", icon: Box },
   { href: "/inventory/movements", label: "Movement Audit", icon: History },
+  { href: "/integrations/inventory", label: "Warehouse Imports", icon: DatabaseZap },
   { href: "/cycle-counts", label: "Cycle Counts", icon: ClipboardCheck },
   { href: "/discrepancies", label: "Discrepancy Queue", icon: AlertTriangle },
   { href: "/primary-picking", label: "Primary Picking", icon: ShoppingCart },
