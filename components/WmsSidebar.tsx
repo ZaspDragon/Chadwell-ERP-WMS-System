@@ -14,6 +14,7 @@ import {
   History,
   Headset,
   ClipboardCheck,
+  PackagePlus,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { href: "/inventory/movements", label: "Movement Audit", icon: History },
   { href: "/cycle-counts", label: "Cycle Counts", icon: ClipboardCheck },
   { href: "/primary-picking", label: "Primary Picking", icon: ShoppingCart },
+  { href: "/replenishment", label: "Auto Restock", icon: PackagePlus },
   { href: "/help", label: "Help Center", icon: Headset },
 ];
 
