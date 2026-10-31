@@ -23,7 +23,7 @@ export function previewStockImport(text:string,source:string):ImportPreview{
  const rows:ExternalStock[]=[],issues:ImportIssue[]=[];const seen=new Set<string>(),duplicates=new Set<string>();
  for(let i=1;i<data.length;i++){const row=data[i],warehouse=normalized(get(row,"warehouse")),bin=normalized(get(row,"bin")),item=normalized(get(row,"item"));
  const onHand=integer(get(row,"on_hand")),allocated=headers.includes("allocated")?integer(get(row,"allocated")):0,onHold=headers.includes("on_hold")?integer(get(row,"on_hold")):0;
- if(!warehouse||!bin||!item||onHand===null||allocated===null||onHold===null){issues.push({line:i+1,reason:"Missing warehouse/bin/item or invalid nonnegative whole-number quantity"});continue}
+ if(!warehouse||!bin||!/^\d{6}$/.test(item)||onHand===null||allocated===null||onHold===null){issues.push({line:i+1,reason:"Missing warehouse/bin, item must be exactly 6 digits, or invalid nonnegative whole-number quantity"});continue}
  const key=[warehouse,bin,item].join("|");if(seen.has(key)){duplicates.add(key);issues.push({line:i+1,reason:"Duplicate warehouse/bin/item key"});continue}seen.add(key);
  rows.push({source,warehouse,bin,item,onHand,allocated,onHold,description:get(row,"description").trim()});
  }
