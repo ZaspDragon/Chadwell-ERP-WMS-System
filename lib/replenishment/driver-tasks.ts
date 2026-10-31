@@ -23,7 +23,7 @@ export function createDriverTask(
   return [...existing, {...task,sourceBin:task.sourceBin.trim().toUpperCase(),status:"OPEN",driver:null,actualQty:null,note:"",createdAt}];
 }
 export function assignDriver(tasks: DriverTask[], id: string, driver: string): DriverTask[] {
-  if (!DRIVERS.some(d => d === driver)) return tasks;
+  if (!driver.trim()) return tasks;
   return tasks.map(t => t.id === id && t.status === "OPEN" ? {...t,status:"ASSIGNED",driver} : t);
 }
 export function beginTask(tasks: DriverTask[], id: string): DriverTask[] {
